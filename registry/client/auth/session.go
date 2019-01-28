@@ -26,6 +26,7 @@ var (
 )
 
 const defaultClientID = "registry-client"
+const defaultHttpTimeout = 15 * time.Second
 
 // AuthenticationHandler is an interface for authorizing a request from
 // params from a "WWW-Authenicate" header for a single scheme.
@@ -120,9 +121,10 @@ type clock interface {
 }
 
 type tokenHandler struct {
-	creds     CredentialStore
-	transport http.RoundTripper
-	clock     clock
+	creds       CredentialStore
+	transport   http.RoundTripper
+	httpTimeout time.Duration
+	clock       clock
 
 	offlineAccess bool
 	forceOAuth    bool
@@ -190,6 +192,7 @@ func logDebugf(logger Logger, format string, args ...interface{}) {
 // TokenHandlerOptions is used to configure a new token handler
 type TokenHandlerOptions struct {
 	Transport   http.RoundTripper
+	HttpTimeout *time.Duration
 	Credentials CredentialStore
 
 	OfflineAccess bool
@@ -235,13 +238,19 @@ func NewTokenHandlerWithOptions(options TokenHandlerOptions) AuthenticationHandl
 		logger:        options.Logger,
 	}
 
+	if options.HttpTimeout == nil {
+		handler.httpTimeout = defaultHttpTimeout
+	} else {
+		handler.httpTimeout = *options.HttpTimeout
+	}
+
 	return handler
 }
 
 func (th *tokenHandler) client() *http.Client {
 	return &http.Client{
 		Transport: th.transport,
-		Timeout:   15 * time.Second,
+		Timeout:   th.httpTimeout,
 	}
 }
 
